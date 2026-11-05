@@ -20,8 +20,9 @@ if [ "$(count_goals)" = "0" ]; then
   fi
   node -e "JSON.parse(require('fs').readFileSync('$T','utf8'))" || { echo "Данные повреждены."; exit 1; }
   cp "$T" "$DIR/seed.json"; rm -f "$T" "$T.enc"
+  systemctl stop life
   [ -f "$DIR/data/data.json" ] && mv "$DIR/data/data.json" "$DIR/data/before-import-$(date +%s).json"
-  systemctl restart life
+  systemctl start life
   sleep 2
 fi
 

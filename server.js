@@ -32,12 +32,17 @@ const SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
 // ---------- хранилище ----------
 let store = {};
 let version = 0;
+function readJson(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } }
+function isEmpty(d) { return !d || COLLECTIONS.every(c => !d[c] || !Object.keys(d[c]).length); }
 function load() {
-  const src = fs.existsSync(DATA_FILE) ? DATA_FILE : (fs.existsSync(SEED_FILE) ? SEED_FILE : null);
-  store = src ? JSON.parse(fs.readFileSync(src, 'utf8')) : {};
+  // Стартовые данные берутся, только если в сервисе совсем пусто — твои записи никогда не затираются.
+  let d = fs.existsSync(DATA_FILE) ? readJson(DATA_FILE) : null;
+  let fromSeed = false;
+  if (isEmpty(d) && fs.existsSync(SEED_FILE)) { const s = readJson(SEED_FILE); if (!isEmpty(s)) { d = s; fromSeed = true; } }
+  store = d || {};
   for (const c of COLLECTIONS) if (!store[c] || typeof store[c] !== 'object') store[c] = {};
   version = Date.now();
-  if (src === SEED_FILE) persistNow();
+  if (fromSeed) { persistNow(); console.log('Загружены стартовые данные'); }
 }
 let timer = null;
 function persist() { clearTimeout(timer); timer = setTimeout(persistNow, 300); }
