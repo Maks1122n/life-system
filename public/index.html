@@ -386,6 +386,45 @@ button.tile:hover{border-color:var(--muted)}
 .krlist li:first-child{border-top:0}
 .krlist .check{flex:1;min-width:0}
 .dlinks{display:flex;gap:6px;flex-wrap:wrap}
+/* v4: гибкий план, мысли */
+.plan li{display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 8px;border-radius:10px}
+.plan li.now{background:var(--accent-soft)}
+.plan li.st-done .line-input{color:var(--muted);text-decoration:line-through}
+.plan li.st-skip .line-input,.plan li.st-skip .tin{color:var(--muted);font-style:italic}
+.tin{border:1px solid transparent;background:transparent;border-radius:8px;padding:5px 4px;font-family:var(--font-mono);font-size:13px;width:100%;min-width:0}
+.tin:hover{border-color:var(--line)} .tin:focus{outline:none;border-color:var(--accent)}
+.pl-act{display:flex;gap:2px}
+.pa{width:32px;height:32px;border:1px solid transparent;background:none;border-radius:8px;color:var(--muted);font-size:15px;line-height:1;padding:0}
+.pa:hover{border-color:var(--line);color:var(--fg)}
+.pa[aria-pressed="true"]{background:var(--pine-soft);color:var(--pine);border-color:transparent}
+.pa[data-st="skip"][aria-pressed="true"]{background:var(--surface-2);color:var(--fg)}
+.pa.del:hover{color:var(--danger);background:var(--danger-soft)}
+.plan-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.plan-foot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.plan-foot .r{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.prow2{display:flex;align-items:center;gap:6px}
+.prow2 .check{flex:1;min-width:0}
+.skip-btn{flex:none;width:34px;height:34px;border:0;background:none;color:var(--muted);border-radius:8px;font-size:16px;opacity:.55}
+.skip-btn:hover{opacity:1;background:var(--surface-2)}
+.pskip{display:flex;gap:10px;align-items:center;padding:10px 0;color:var(--muted);flex-wrap:wrap}
+.pskip .lbl{flex:1;min-width:0;text-decoration:line-through;text-decoration-style:dotted}
+textarea.in{overflow:hidden}
+.note-in{min-height:84px}
+.note-big{min-height:38vh;font-size:16px;line-height:1.55}
+.note-bar{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.notes{margin-top:10px}
+.notes li{padding:8px 0;border-top:1px solid var(--line)}
+.notes li:first-child{border-top:0}
+textarea.note-tx{border-color:transparent;background:transparent;padding:4px 2px;min-height:0}
+.note-tx:hover{border-color:var(--line)}
+.note-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.note-meta .sp{flex:1}
+.fab{position:fixed;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);font-size:30px;line-height:1;box-shadow:var(--shadow);z-index:45;display:grid;place-items:center;padding:0 0 3px}
+.fab:hover{filter:brightness(1.07)}
+.krlist li{align-items:center;gap:10px;padding:6px 0}
+.krlist .line-input{flex:1}
+.top3 .x-btn{margin-left:auto}
+@media (max-width:720px){.fab{bottom:calc(84px + env(safe-area-inset-bottom,0px));right:calc(16px + env(safe-area-inset-right,0px));width:52px;height:52px}.plan li{grid-template-columns:52px minmax(0,1fr) auto;padding:4px 2px;gap:2px}.pa{width:28px}}
 /* phone */
 @media (max-width:720px){
   .app{padding-top:12px;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
@@ -437,6 +476,7 @@ button.tile:hover{border-color:var(--muted)}
   <div class="notice" id="notice" hidden></div>
   <main id="view"><div class="loading">Собираю твою систему…</div></main>
 </div>
+<button class="fab" type="button" data-act="note-quick" aria-label="Записать мысль" title="Записать мысль">+</button>
 <div id="login" class="login" hidden>
   <form id="login-form" class="sheet login-card">
     <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle class="o" cx="20" cy="20" r="17"/><path class="n" d="M20 6 L24 20 L20 18 L16 20 Z"/><path class="s" d="M20 34 L16 20 L20 22 L24 20 Z"/></svg>
@@ -481,7 +521,7 @@ const num=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:1});
 function fVal(v,u){const s=num(v);return u==='$'?'$'+s:(u==='₽'?s+' ₽':s+(u?' '+u:''))}
 const toNum=s=>{const v=parseFloat(String(s??'').replace(/\s/g,'').replace(',','.'));return isNaN(v)?null:v};
 
-const S={config:null,spheres:{},goals:{},tasks:{},days:{},weeks:{},months:{},loaded:{},state:'loading',monthKey:null,yearTab:'map',
+const S={config:null,spheres:{},goals:{},tasks:{},days:{},weeks:{},months:{},notes:{},loaded:{},state:'loading',monthKey:null,yearTab:'map',tasksTab:'tasks',planReset:false,noteDel:null,sphDel:null,
   view:'today',dayKey:todayKey(),weekStart:null,sel:null,horizon:'dec',showDone:false,modal:null,draft:null};
 let db=null;
 
@@ -515,7 +555,18 @@ function reqFor(mode){return (cfg().promises||[]).filter(p=>mode!=='min'||p.min)
 function blankDay(k){return {date:k,mode:'normal',promises:{},top:[{t:'',d:false},{t:'',d:false},{t:'',d:false}],energy:null,wins:'',lesson:''}}
 function getDay(k){const d=S.days[k];const r=Object.assign(blankDay(k),clone(d)||{});while(r.top.length<3)r.top.push({t:'',d:false});r.promises=r.promises||{};return r}
 /* Прошлые дни считаются по тем обещаниям, что действовали в тот день. Сегодня и будущее — по текущим. */
-function dayReq(k,d){return (d&&d.req&&k<todayKey())?d.req:reqFor(d?d.mode:'normal')}
+function dayReqBase(k,d){return (d&&d.req&&k<todayKey())?d.req:reqFor(d?d.mode:'normal')}
+/* Отпущенное на день обещание не считается ни выполненным, ни сорванным. */
+function dayReq(k,d){const b=dayReqBase(k,d);return d&&d.skip?b.filter(r=>!d.skip[r.id]):b}
+function dayPlan(k,d){return (d&&Array.isArray(d.plan))?d.plan:(cfg().schedule||[]).map((b,i)=>({id:'b'+i,time:b.time,title:b.title,st:''}))}
+function materialize(dd){if(!Array.isArray(dd.plan))dd.plan=(cfg().schedule||[]).map((b,i)=>({id:'b'+i,time:b.time,title:b.title,st:''}))}
+function addMin(t,m){const [h,mi]=String(t||'00:00').split(':').map(Number);const v=Math.max(0,Math.min(1439,(h||0)*60+(mi||0)+m));return pad(Math.floor(v/60))+':'+pad(v%60)}
+const notesAll=()=>Object.entries(S.notes).map(([id,n])=>({id,...n}));
+const firstLine=t=>(String(t||'').split('\n').map(x=>x.trim()).find(Boolean)||'').slice(0,140);
+function createNote(text,to){const id=uid();S.notes[id]={text,at:new Date().toISOString(),day:todayKey(),to:to||null};save('notes/'+id,S.notes[id],0);return id}
+function autosize(el){if(!el||el.tagName!=='TEXTAREA')return;el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px'}
+function noteRow(n){const t=new Date(n.at),tm=isNaN(t)?'':pad(t.getHours())+':'+pad(t.getMinutes());
+  return `<li class="note" data-text="${esc(String(n.text||'').toLowerCase())}"><textarea class="in note-tx" id="nt-${esc(n.id)}" data-input="note-text" data-id="${esc(n.id)}" rows="1" aria-label="Мысль">${esc(n.text)}</textarea><div class="note-meta"><span class="mono small muted">${tm}</span>${n.to?`<span class="chip">→ ${n.to==='task'?'в задачах':'в целях'}</span>`:''}<span class="sp"></span><button class="btn sm ghost" type="button" data-act="note-task" data-id="${esc(n.id)}">В задачу</button><button class="btn sm ghost" type="button" data-act="note-goal" data-id="${esc(n.id)}">В цель</button>${S.noteDel===n.id?`<button class="btn sm danger" type="button" data-act="note-del" data-id="${esc(n.id)}">Удалить?</button>`:`<button class="x-btn" type="button" data-act="note-del" data-id="${esc(n.id)}" aria-label="Удалить мысль">×</button>`}</div></li>`}
 function mutateDay(k,fn,delay){const d=getDay(k);fn(d);if(k>=todayKey()||!d.req)d.req=reqFor(d.mode);S.days[k]=d;save('days/'+k,d,delay)}
 function dayStat(k){const d=S.days[k];const req=dayReq(k,d);if(!d)return {done:0,total:req.length,has:false,req};const p=d.promises||{};return {done:req.filter(x=>p[x.id]).length,total:req.length,has:true,req}}
 function complete(k){const s=dayStat(k);return s.has&&s.total>0&&s.done===s.total}
@@ -553,7 +604,7 @@ function goalOptions(sel){return '<option value="">Без цели</option>'+goa
 let needRender=false;
 function editing(){const a=document.activeElement;if(!a||!viewEl.contains(a))return false;return a.tagName==='TEXTAREA'||a.tagName==='SELECT'||(a.tagName==='INPUT'&&!['checkbox','radio','button','submit'].includes(a.type))}
 function scheduleRender(){if(editing()){needRender=true;return}render()}
-document.addEventListener('focusout',()=>setTimeout(()=>{if(needRender&&!editing()){needRender=false;render()}},0));
+document.addEventListener('focusout',e=>{const pt=e.target&&e.target.dataset&&e.target.dataset.input==='plan-time';setTimeout(()=>{if((needRender||pt)&&!editing()){needRender=false;render()}},0)});
 
 function render(){
   const fid=document.activeElement&&viewEl.contains(document.activeElement)?document.activeElement.id:null;
@@ -562,6 +613,7 @@ function render(){
   if(S.state==='loading'&&!S.config&&!Object.keys(S.spheres).length){viewEl.innerHTML='<div class="loading">Собираю твою систему…</div>';return}
   const fn={today:vToday,week:vWeek,month:vMonth,year:vYear,tasks:vTasks,progress:vProgress}[S.view]||vToday;
   viewEl.innerHTML=fn();
+  viewEl.querySelectorAll('textarea').forEach(autosize);
   if(fid){const el=document.getElementById(fid);if(el)el.focus({preventScroll:true})}
 }
 function renderTop(){
@@ -596,11 +648,12 @@ function vToday(){
   const now=new Date();
   let banner='';
   if(isT&&now.getDay()===0&&!(S.weeks[weekKey(tk)]&&S.weeks[weekKey(tk)].wins))banner=`<div class="banner"><span><b>Воскресенье.</b> Время обзора недели: 30 минут, только выводы.</span><button class="btn sm" type="button" data-view="week">Открыть неделю</button></div>`;
-  const promises=req.length?req.map(p=>`<li><label class="check"><input type="checkbox" id="pr-${esc(p.id)}" data-act="promise" data-id="${esc(p.id)}"${d.promises[p.id]?' checked':''}><span class="box"></span><span class="lbl">${esc(p.label)}</span></label></li>`).join(''):'<li class="empty">Обещаний пока нет. Добавь их в «Настроить».</li>';
-  const top=d.top.slice(0,3).map((t,i)=>{
+  const reqAll=dayReqBase(k,S.days[k]?d:{mode:d.mode}),skipN=reqAll.length-req.length;
+  const promises=reqAll.length?reqAll.map(p=>(d.skip&&d.skip[p.id])?`<li class="pskip"><span class="lbl">${esc(p.label)}</span><span class="small">сегодня отпущено</span><button class="btn sm ghost" type="button" data-act="promise-skip" data-id="${esc(p.id)}">Вернуть</button></li>`:`<li class="prow2"><label class="check"><input type="checkbox" id="pr-${esc(p.id)}" data-act="promise" data-id="${esc(p.id)}"${d.promises[p.id]?' checked':''}><span class="box"></span><span class="lbl">${esc(p.label)}</span></label><button class="skip-btn" type="button" data-act="promise-skip" data-id="${esc(p.id)}" title="Сегодня не про это: отпустить без срыва серии" aria-label="Отпустить на сегодня: ${esc(p.label)}">↷</button></li>`).join(''):'<li class="empty">Обещаний пока нет. Добавь их в «Настроить».</li>';
+  const top=d.top.slice(0,6).map((t,i)=>{
     const task=t.task&&S.tasks[t.task];
     if(t.task){const tdone=task?!!task.done:!!t.d;return `<li><span class="n">${i+1}</span><label class="check solo"><input type="checkbox" id="tp-${i}" data-act="top-done" data-i="${i}"${tdone?' checked':''} aria-label="Готово"><span class="box"></span></label><span class="slot-task${tdone?' done':''}"><span class="tt">${esc(task?task.title:t.t)}</span>${task?sphereChip(task.sphere):''}<span class="link-mark">задача</span></span><button class="x-btn" type="button" data-act="top-unlink" data-i="${i}" aria-label="Освободить слот">×</button></li>`}
-    return `<li><span class="n">${i+1}</span><label class="check solo"><input type="checkbox" id="tp-${i}" data-act="top-done" data-i="${i}"${t.d?' checked':''} aria-label="Задача ${i+1} выполнена"><span class="box"></span></label><input class="line-input" id="tt-${i}" data-input="top-text" data-i="${i}" value="${esc(t.t)}" placeholder="${['Самое важное, что двигает цель','Вторая по важности','Третья'][i]}" aria-label="Главная задача ${i+1}"></li>`}).join('');
+    return `<li><span class="n">${i+1}</span><label class="check solo"><input type="checkbox" id="tp-${i}" data-act="top-done" data-i="${i}"${t.d?' checked':''} aria-label="Задача ${i+1} выполнена"><span class="box"></span></label><input class="line-input" id="tt-${i}" data-input="top-text" data-i="${i}" value="${esc(t.t)}" placeholder="${['Самое важное, что двигает цель','Вторая по важности','Третья'][i]||'Ещё одна'}" aria-label="Главная задача ${i+1}">${i>=3?`<button class="x-btn" type="button" data-act="top-remove" data-i="${i}" aria-label="Убрать строку">×</button>`:''}</li>`}).join('');
   const hasEmpty=d.top.some(t=>!t.task&&!String(t.t||'').trim());
   /* фокус-метрики: числовые цели в сферах «Главное» и «Поддержка» */
   const fm=goalsSorted().filter(g=>g.kind==='number'&&modeOf(g.sphere)!=='keep'&&progress(g)<1).map(g=>{const p=progress(g),pc=pace(g);return `<div class="focusm"><div class="row"><b>${esc(g.title)}</b><span>${fVal(g.current,g.unit)} / ${fVal(g.target,g.unit)}</span></div><div class="bar"><i style="width:${(p*100).toFixed(1)}%"></i></div>${pc?`<div class="pace">${pc}</div>`:''}</div>`}).join('');
@@ -610,9 +663,11 @@ function vToday(){
   const linked=new Set(d.top.map(t=>t.task).filter(Boolean));
   const dueRest=due.filter(t=>!linked.has(t.id));
   const dueHtml=dueRest.length?`<ul class="tlist">${dueRest.map(taskRow).join('')}</ul>`:`<p class="empty">${due.length?'Все задачи дня уже в главных.':'На этот день задач с датой нет.'}</p>`;
-  const sch=[...(c.schedule||[])].sort((a,b)=>String(a.time).localeCompare(String(b.time)));
-  let ni=-1;if(isT){const hm=pad(now.getHours())+':'+pad(now.getMinutes());sch.forEach((b,i)=>{if(b.time<=hm)ni=i})}
-  const schHtml=sch.length?sch.map((b,i)=>`<li class="${i===ni?'now':(isT&&i<ni?'past':'')}"><span class="t">${esc(b.time)}</span><span>${esc(b.title)}</span>${i===ni?'<span class="nowpill">сейчас</span>':'<span></span>'}</li>`).join(''):'<li class="empty">Распорядок не задан. Добавь его в «Настроить».</li>';
+  const plan=dayPlan(k,S.days[k]?d:null).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+  const hmNow=pad(now.getHours())+':'+pad(now.getMinutes());let ni=-1;if(isT)plan.forEach((b,i)=>{if(b.time&&b.time<=hmNow)ni=i});
+  const pDone=plan.filter(b=>b.st==='done').length,pSkip=plan.filter(b=>b.st==='skip').length;
+  const planHtml=plan.length?plan.map((b,i)=>`<li class="${b.st?'st-'+b.st:''}${i===ni?' now':''}"${i===ni?' aria-current="time"':''}><input class="tin" type="text" inputmode="numeric" maxlength="5" placeholder="09:00" id="pt-${esc(b.id)}" data-input="plan-time" data-id="${esc(b.id)}" value="${esc(b.time)}" aria-label="Время блока"><input class="line-input" id="pn-${esc(b.id)}" data-input="plan-title" data-id="${esc(b.id)}" value="${esc(b.title)}" placeholder="Что делаю" aria-label="Блок"><span class="pl-act"><button type="button" class="pa" data-act="plan-st" data-st="done" data-id="${esc(b.id)}" aria-pressed="${b.st==='done'}" title="Сделано" aria-label="Сделано">✓</button><button type="button" class="pa" data-act="plan-st" data-st="skip" data-id="${esc(b.id)}" aria-pressed="${b.st==='skip'}" title="Отпустил: день пошёл иначе" aria-label="Отпустил">↷</button><button type="button" class="pa del" data-act="plan-del" data-id="${esc(b.id)}" title="Убрать блок" aria-label="Убрать блок">×</button></span></li>`).join(''):'<li class="empty">План пуст. Добавь блоки или верни шаблон.</li>';
+  const dn=notesAll().filter(n=>n.day===k).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
   const en=[1,2,3,4,5].map(v=>`<button type="button" data-act="energy" data-v="${v}" id="en-${v}" aria-pressed="${d.energy===v}">${v}</button>`).join('');
   const reviewDue=isT&&now.getHours()>=21&&!String(d.wins||'').trim();
   return `${banner}
@@ -630,22 +685,30 @@ function vToday(){
   <div class="grid2">
     <div class="col">
       <section class="panel">
-        <header><span class="label">Обещания себе</span><span class="count${full?' full':''}"><b>${done}</b> из ${req.length}</span></header>
+        <header><span class="label">Обещания себе</span><span class="count${full?' full':''}"><b>${done}</b> из ${req.length}${skipN?` · ${skipN} отпущено`:''}</span></header>
         ${c.identity?`<p class="identity">${esc(c.identity)}</p>`:''}
         <ul class="promise-list">${promises}</ul>
         <div class="evidence"><div><div class="num">${st}</div><p>${plural(st,DAYS)} подряд без срыва</p></div><div><div class="num">${kept}</div><p>сдержанных обещаний всего. Это доказательства, что ты уже этот человек.</p></div></div>
       </section>
-      <section class="panel top3"><header><span class="label">Три главные задачи</span>${hasEmpty?'<button class="btn sm" type="button" data-act="top-suggest">Подобрать из задач</button>':''}</header><ul>${top}</ul>
+      <section class="panel top3"><header><span class="label">Главные задачи</span>${hasEmpty?'<button class="btn sm" type="button" data-act="top-suggest">Подобрать из задач</button>':''}</header><ul>${top}</ul>${d.top.length<6?'<button class="btn ghost sm" type="button" data-act="top-add" style="margin-top:4px">+ Ещё одна</button>':''}
         <p class="muted small" style="margin-top:6px">Главные задачи берутся из целей: так день двигает то, что важно. Отметка здесь закрывает и саму задачу.</p></section>
       <section class="panel"><header><span class="label">По целям</span><button class="btn ghost sm" type="button" data-view="goals">Все цели</button></header>${fm}<div class="sub-label" style="margin-top:${fm?'8px':'0'}"><span class="label" style="font-size:11px">Контрольные точки: просрочено и 7 дней</span></div>${upHtml}</section>
       <section class="panel"><header><span class="label">${isT?'Остальные задачи на сегодня':'Задачи на этот день'}</span><button class="btn ghost sm" type="button" data-view="tasks">Все задачи</button></header>${dueHtml}</section>
     </div>
     <div class="col">
-      <section class="panel"><header><span class="label">Распорядок</span></header><ul class="sched">${schHtml}</ul></section>
+      <section class="panel"><header><span class="label">Мысли</span><span class="muted small">без формы и правил</span></header>
+        <form data-form="note-add"><textarea class="in note-in" name="text" id="note-inline" placeholder="Что в голове — пиши как есть. Ctrl/⌘ + Enter сохранит." aria-label="Мысль"></textarea><div class="note-bar"><button class="btn sm primary" type="submit">Сохранить мысль</button></div></form>
+        ${dn.length?`<ul class="notes">${dn.map(noteRow).join('')}</ul>`:''}</section>
+      <section class="panel"><header><span class="label">План дня</span><span class="muted small">${pDone} сделано · ${pSkip} отпущено · ${plan.length-pDone-pSkip} впереди</span></header>
+        <ul class="plan">${planHtml}</ul>
+        <div class="plan-tools"><button class="btn sm" type="button" data-act="plan-add">+ Блок</button><span class="muted small">Пошло иначе? Сдвинь оставшееся:</span><div class="seg" role="group" aria-label="Сдвинуть оставшиеся блоки"><button type="button" data-act="plan-shift" data-m="15">+15</button><button type="button" data-act="plan-shift" data-m="30">+30</button><button type="button" data-act="plan-shift" data-m="60">+1 ч</button><button type="button" data-act="plan-shift" data-m="-15">−15</button></div></div>
+        <div class="plan-foot"><span class="muted small">План — ориентир, а не экзамен. Затянулся созвон или пошёл поток — сдвигай и отпускай.</span><span class="r">${S.planReset?'<span class="muted small">Вернуть шаблон и стереть правки дня?</span><button class="btn sm" type="button" data-act="plan-reset-no">Нет</button><button class="btn sm danger" type="button" data-act="plan-reset-yes">Вернуть</button>':'<button class="btn ghost sm" type="button" data-act="plan-template">Сделать шаблоном</button><button class="btn ghost sm" type="button" data-act="plan-reset">Вернуть шаблон</button>'}</span></div>
+      </section>
       <section class="panel review"><header><span class="label">Вечерний обзор</span>${reviewDue?'<span class="pill done">пора</span>':'<span class="muted small">10 минут, без самонаказания</span>'}</header>
         <div class="field"><span>Энергия за день</span><div class="energy" role="group" aria-label="Энергия от 1 до 5">${en}</div></div>
         <label class="field"><span>Что получилось</span><textarea class="in" id="rv-wins" data-input="day-field" data-field="wins" placeholder="Даже маленькое считается">${esc(d.wins)}</textarea></label>
         <label class="field"><span>Что мешало и что меняю завтра</span><textarea class="in" id="rv-lesson" data-input="day-field" data-field="lesson" placeholder="Вывод, а не оценка себя">${esc(d.lesson)}</textarea></label>
+        <label class="field"><span>Свободно</span><textarea class="in" id="rv-free" data-input="day-field" data-field="free" placeholder="Всё, что хочется записать про этот день">${esc(d.free)}</textarea></label>
         ${isT?'<div style="margin-top:12px"><button class="btn sm" type="button" data-act="plan-tomorrow">Спланировать завтра</button></div>':''}
       </section>
     </div>
@@ -722,7 +785,7 @@ function vMap(){
   const st=tasksAll().filter(t=>t.sphere===sid&&!t.done).sort((a,b)=>String(a.due||'9').localeCompare(String(b.due||'9')));
   const modeSeg=Object.entries(MODES).map(([k,l])=>`<button type="button" data-act="sphere-mode" data-id="${esc(sid)}" data-mode="${k}" aria-pressed="${(s.mode||'keep')===k}">${l}</button>`).join('');
   const scale=[1,2,3,4,5,6,7,8,9,10].map(v=>`<button type="button" data-act="sphere-score" data-id="${esc(sid)}" data-v="${v}" class="${s.score&&v<s.score?'lit':''}" aria-pressed="${+s.score===v}" aria-label="Оценка ${v}">${v}</button>`).join('');
-  return `<div class="viewhead"><h2 class="h2">Карта сфер</h2><p class="muted small" style="max-width:48ch">Кольцо показывает, где ты сейчас по 10-балльной шкале. Толстая линия — сфера в фокусе. Оценки обновляются в обзоре недели.</p></div>
+  return `<div class="viewhead"><h2 class="h2">Карта сфер</h2><button class="btn sm" type="button" data-act="sphere-add">+ Сфера</button><p class="muted small" style="max-width:48ch">Кольцо показывает, где ты сейчас по 10-балльной шкале. Толстая линия — сфера в фокусе. Оценки обновляются в обзоре недели.</p></div>
   <div class="mapwrap">
     <div class="panel mapcard">${radial}${mlist}<div class="legend"><span class="f"><i></i>Главное</span><span class="s"><i></i>Поддержка</span><span><i></i>Держим уровень</span></div></div>
     <aside class="panel sphere-panel" id="sphere-panel">
@@ -734,6 +797,7 @@ function vMap(){
       <div><div class="sub-label"><span class="label">Цели</span><button class="btn ghost sm" type="button" data-act="goal-new" data-sphere="${esc(sid)}">Новая цель</button></div>${sg.length?`<ul class="mini">${sg.map(g=>{const [c2,l2]=gStatus(g);return `<li><div class="row"><span>${esc(g.title)}</span><span>${Math.round(progress(g)*100)}%</span></div><div class="bar${g.kind==='number'?'':' pine'}"><i style="width:${(progress(g)*100).toFixed(1)}%"></i></div><div><span class="pill ${c2}">${l2}</span></div></li>`}).join('')}</ul>`:'<p class="empty">Целей в этой сфере нет.</p>'}</div>
       <div><div class="label" style="margin-bottom:4px">Открытые задачи</div>${st.length?`<ul class="tlist">${st.map(taskRow).join('')}</ul>`:'<p class="empty">Открытых задач нет.</p>'}
         <form class="inline-form" data-form="task-add" style="margin-top:8px"><input type="hidden" name="sphere" value="${esc(sid)}"><input class="in" name="title" id="sp-task" placeholder="Новая задача в этой сфере" aria-label="Новая задача"><input class="in" type="date" name="due" id="sp-due" aria-label="Срок"><button class="btn" type="submit">Добавить</button></form></div>
+      <div class="goal-foot">${S.sphDel===sid?`<span class="muted small">Удалить сферу? Цели и задачи останутся.</span><button class="btn sm" type="button" data-act="sphere-del-no">Нет</button><button class="btn sm danger" type="button" data-act="sphere-del" data-id="${esc(sid)}">Удалить</button>`:`<button class="btn ghost sm" type="button" data-act="sphere-del" data-id="${esc(sid)}">Удалить сферу</button>`}</div>
     </aside>
   </div>`;
 }
@@ -744,12 +808,21 @@ function vTasks(){
   const open=all.filter(t=>!t.done).sort((a,b)=>String(a.due||'9').localeCompare(String(b.due||'9'))||String(a.created||'').localeCompare(String(b.created||'')));
   const groups=[['late','Просрочено',open.filter(t=>t.due&&t.due<tk)],['','Сегодня',open.filter(t=>t.due===tk)],['','Ближайшие 7 дней',open.filter(t=>t.due&&t.due>tk&&t.due<=wk)],['','Позже',open.filter(t=>t.due&&t.due>wk)],['','Без срока',open.filter(t=>!t.due)]].filter(g=>g[2].length);
   const done=all.filter(t=>t.done).sort((a,b)=>String(b.doneAt||'').localeCompare(String(a.doneAt||''))).slice(0,40);
-  return `<div class="viewhead"><h1 class="h1">Задачи</h1><p class="muted small" style="max-width:44ch">Нажми на задачу, чтобы изменить название, срок, сферу или привязать к цели.</p></div>
+  if(S.tasksTab==='notes')return vNotes();
+  return `<div class="viewhead"><h1 class="h1">Задачи</h1>${tasksSeg()}</div><p class="muted small" style="margin:-6px 0 14px">Нажми на задачу, чтобы изменить название, срок, сферу или привязать к цели.</p>
   <section class="panel addbar"><form class="inline-form" data-form="task-add"><input class="in" name="title" id="ta-title" placeholder="Что нужно сделать" aria-label="Задача" style="flex-basis:100%"><select class="in" name="goal" id="ta-goal" aria-label="Цель">${goalOptions('')}</select><select class="in" name="sphere" id="ta-sphere" aria-label="Сфера">${sphereOptions('','Сфера по цели')}</select><input class="in" type="date" name="due" id="ta-due" value="${tk}" aria-label="Срок"><button class="btn primary" type="submit">Добавить</button></form></section>
   <section class="panel">
     ${groups.length?groups.map(([c,l,ts])=>`<div class="tgroup ${c}"><h3><span class="label">${l}</span><span class="mono">${ts.length}</span></h3><ul class="tlist">${ts.map(taskRow).join('')}</ul></div>`).join(''):'<p class="empty">Открытых задач нет.</p>'}
     ${done.length?`<div class="tgroup"><button class="btn ghost sm" type="button" data-act="toggle-done">${S.showDone?'Скрыть сделанные':'Показать сделанные ('+done.length+')'}</button>${S.showDone?`<ul class="tlist" style="margin-top:6px">${done.map(taskRow).join('')}</ul>`:''}</div>`:''}
   </section>`;
+}
+
+function tasksSeg(){return `<div class="seg" role="group" aria-label="Раздел"><button type="button" data-act="tasks-tab" data-t="tasks" aria-pressed="${S.tasksTab!=='notes'}">Задачи</button><button type="button" data-act="tasks-tab" data-t="notes" aria-pressed="${S.tasksTab==='notes'}">Мысли</button></div>`}
+function vNotes(){
+  const tk=todayKey(),all=notesAll().sort((a,b)=>String(b.at).localeCompare(String(a.at))),by={};all.forEach(n=>{(by[n.day||'—']=by[n.day||'—']||[]).push(n)});
+  return `<div class="viewhead"><h1 class="h1">Мысли</h1>${tasksSeg()}</div>
+  <section class="panel addbar"><form data-form="note-add"><textarea class="in note-in" name="text" id="note-page" placeholder="Пиши как есть: идея, тревога, план, наблюдение. Структура потом." aria-label="Мысль"></textarea><div class="note-bar"><button class="btn sm primary" type="submit">Сохранить мысль</button></div></form></section>
+  <section class="panel">${all.length?`<input class="in" id="note-q" data-input="note-search" placeholder="Поиск по мыслям" aria-label="Поиск по мыслям" style="margin-bottom:6px">`+Object.keys(by).sort().reverse().map(dk=>`<div class="tgroup"><h3><span class="label">${dk==='—'?'Без даты':dk===tk?'Сегодня':WD[parse(dk).getDay()]+', '+fDay(dk)}</span><span class="mono">${by[dk].length}</span></h3><ul class="notes">${by[dk].map(noteRow).join('')}</ul></div>`).join(''):'<p class="empty">Пока пусто. Сюда любая мысль: без правил и без формы.</p>'}</section>`;
 }
 
 /* WEEK */
@@ -950,7 +1023,7 @@ function habitStats(){
 function krPanel(scope,key,list,title,hint){
   list=list||[];
   return `<section class="panel"><header><span class="label">${title}</span><span style="display:flex;align-items:center;gap:8px">${ring(krPct(list),'acc',30,4,null)}<span class="count"><b>${list.filter(x=>x.d).length}</b> из ${list.length}</span></span></header>${hint?`<p class="hint">${hint}</p>`:''}
-  ${list.length?`<ul class="krlist">${list.map((x,i)=>`<li><label class="check"><input type="checkbox" id="kr-${scope}-${i}" data-act="kr-toggle" data-scope="${scope}" data-key="${esc(key)}" data-i="${i}"${x.d?' checked':''}><span class="box"></span><span class="lbl">${esc(x.t)}</span></label><button class="x-btn" type="button" data-act="kr-del" data-scope="${scope}" data-key="${esc(key)}" data-i="${i}" aria-label="Удалить">×</button></li>`).join('')}</ul>`:'<p class="empty">Пока пусто.</p>'}
+  ${list.length?`<ul class="krlist">${list.map((x,i)=>`<li><label class="check solo"><input type="checkbox" id="kr-${scope}-${i}" data-act="kr-toggle" data-scope="${scope}" data-key="${esc(key)}" data-i="${i}"${x.d?' checked':''} aria-label="Выполнено"><span class="box"></span></label><input class="line-input" id="krt-${scope}-${i}" data-input="kr-text" data-scope="${scope}" data-key="${esc(key)}" data-i="${i}" value="${esc(x.t)}" aria-label="Результат"><button class="x-btn" type="button" data-act="kr-del" data-scope="${scope}" data-key="${esc(key)}" data-i="${i}" aria-label="Удалить">×</button></li>`).join('')}</ul>`:'<p class="empty">Пока пусто.</p>'}
   <form class="inline-form" data-form="kr-add" data-scope="${scope}" data-key="${esc(key)}" style="margin-top:8px"><input class="in" name="t" id="kra-${scope}" placeholder="Измеримый результат" aria-label="Новый результат"><button class="btn" type="submit">Добавить</button></form></section>`;
 }
 
@@ -1033,7 +1106,8 @@ function closeModal(){modalEl.hidden=true;modalEl.innerHTML='';S.modal=null;S.dr
 function renderModal(focus){
   const st=modalEl.querySelector('.sheet');const top=st?st.scrollTop:0;
   modalEl.hidden=false;
-  modalEl.innerHTML=S.modal==='goal'?mGoal():S.modal==='task'?mTask():mSettings();
+  modalEl.innerHTML=S.modal==='goal'?mGoal():S.modal==='task'?mTask():S.modal==='note'?mNote():mSettings();
+  modalEl.querySelectorAll('textarea').forEach(autosize);
   const ns=modalEl.querySelector('.sheet');if(ns&&!focus)ns.scrollTop=top;
   if(focus){const f=modalEl.querySelector('input:not([type=hidden]),textarea,select');if(f)f.focus({preventScroll:true})}
 }
@@ -1050,6 +1124,14 @@ function mGoal(){
     <label class="field"><span>Сейчас</span><input class="in" inputmode="decimal" data-sinput="current" value="${esc(d.current??0)}"></label>`:''}
     <fieldset><legend>Контрольные точки</legend>${ms||'<p class="empty">Этапов нет.</p>'}<div><button class="btn sm" type="button" data-act="d-add" data-list="milestones">Добавить этап</button></div></fieldset>
     <div class="actions">${del}<div class="r"><button class="btn ghost" type="button" data-act="close-modal">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div>
+  </form>`);
+}
+function mNote(){
+  const d=S.draft;
+  return shell('nt-t','Мысль',`<form data-form="note-save">
+    <textarea class="in note-big" data-sinput="text" placeholder="Пиши как есть: мысль, идею, тревогу, план. Структура потом." aria-label="Мысль">${esc(d.text||'')}</textarea>
+    <div class="actions"><button class="btn ghost sm" type="button" data-act="note-to-task">Сразу в задачу</button><div class="r"><button class="btn ghost" type="button" data-act="close-modal">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div>
+    <p class="muted small">Ctrl/⌘ + Enter — сохранить. Найти потом: «Задачи» → «Мысли».</p>
   </form>`);
 }
 function mTask(){
@@ -1073,7 +1155,7 @@ function mSettings(){
     <div class="two"><label class="field"><span>Фокус до</span><input class="in" type="date" data-sinput="focusUntil" value="${esc(d.focusUntil)}"></label>
     <label class="field"><span>Фраза личности</span><input class="in" data-sinput="identity" value="${esc(d.identity)}"></label></div>
     <fieldset><legend>Обещания себе</legend><p class="muted small">Текст · версия для дня-минимума · сколько раз в неделю. Изменения действуют с сегодняшнего дня, прошлые дни не пересчитываются.</p>${pr||'<p class="empty">Пока пусто.</p>'}<div><button class="btn sm" type="button" data-act="d-add" data-list="promises">Добавить обещание</button></div></fieldset>
-    <fieldset><legend>Распорядок дня</legend>${sc||'<p class="empty">Пока пусто.</p>'}<div><button class="btn sm" type="button" data-act="d-add" data-list="schedule">Добавить блок</button></div></fieldset>
+    <fieldset><legend>Шаблон плана дня</legend><p class="muted small">С него начинается каждый новый день. Сам день правится прямо в «Сегодня».</p>${sc||'<p class="empty">Пока пусто.</p>'}<div><button class="btn sm" type="button" data-act="d-add" data-list="schedule">Добавить блок</button></div></fieldset>
     <fieldset><legend>Перенос и резервная копия</legend>
       <p class="muted small">«Скопировать данные» кладёт всё (цели, задачи, сферы, дни, недели, настройки) в буфер обмена. На другой копии сервиса вставь это в поле ниже и нажми «Загрузить».</p>
       <div><button class="btn sm" type="button" data-act="export">Скопировать данные</button></div>
@@ -1095,10 +1177,11 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&!modalEl.hidden){closeModal();return}
+  if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&e.target.tagName==='TEXTAREA'){const f=e.target.closest('form');if(f){e.preventDefault();f.requestSubmit()}return}
   if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('g[role=button]')){e.preventDefault();act(e.target.dataset.act,e.target,e)}
 });
 document.addEventListener('change',e=>{const t=e.target;if(t.matches('input[type=checkbox][data-act]'))act(t.dataset.act,t,e)});
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.input)onInput(t);else if(t.dataset.sinput)onSInput(t)});
+document.addEventListener('input',e=>{const t=e.target;if(t.tagName==='TEXTAREA')autosize(t);if(t.dataset.input)onInput(t);else if(t.dataset.sinput)onSInput(t)});
 document.addEventListener('submit',e=>{const f=e.target;if(f.dataset&&f.dataset.form){e.preventDefault();onForm(f.dataset.form,f)}});
 
 function setTaskDone(id,v){if(!S.tasks[id])return;mutate('tasks',id,t=>{t.done=v;t.doneAt=v?todayKey():null})}
@@ -1144,7 +1227,7 @@ function act(n,el,e){
     case 'goal-delete':{const gid=S.draft.id;remove('goals',gid);tasksAll().filter(t=>t.goal===gid).forEach(t=>mutate('tasks',t.id,x=>{x.goal=null}));closeModal();toast('Цель удалена');break}
     case 'task-delete':remove('tasks',S.draft.id);closeModal();toast('Задача удалена');break;
     case 'export':{
-      const all={app:'zhizn-v-poryadke',v:2,exported:todayKey()};['spheres','goals','tasks','days','weeks','months'].forEach(c=>{all[c]=clone(S[c])});all.config={main:clone(S.config||{})};
+      const all={app:'zhizn-v-poryadke',v:2,exported:todayKey()};['spheres','goals','tasks','days','weeks','months','notes'].forEach(c=>{all[c]=clone(S[c])});all.config={main:clone(S.config||{})};
       const txt=JSON.stringify(all);S.draft._exp=txt;renderModal();
       const ta=document.getElementById('exp-text');
       const fallback=()=>{if(ta){ta.focus();ta.select()}toast('Выдели текст в поле и скопируй вручную')};
@@ -1155,7 +1238,7 @@ function act(n,el,e){
       S.draft._impConfirm=true;renderModal();return}
     case 'import-no':S.draft._impConfirm=false;renderModal();return;
     case 'import-yes':{let j;try{j=JSON.parse(S.draft._imp||'')}catch(err){return}
-      let n=0;['spheres','goals','tasks','days','weeks','months'].forEach(c=>{const m=j[c]||{};Object.keys(m).forEach(id=>{if(!/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(id)||!m[id]||typeof m[id]!=='object')return;S[c][id]=m[id];save(c+'/'+id,m[id],0);n++})});
+      let n=0;['spheres','goals','tasks','days','weeks','months','notes'].forEach(c=>{const m=j[c]||{};Object.keys(m).forEach(id=>{if(!/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(id)||!m[id]||typeof m[id]!=='object')return;S[c][id]=m[id];save(c+'/'+id,m[id],0);n++})});
       if(j.config&&j.config.main&&typeof j.config.main==='object'){S.config=j.config.main;save('config/main',S.config,0);n++}
       closeModal();toast('Загружено записей: '+n);break}
     case 'open-day':S.dayKey=el.dataset.k;S.view='today';syncHash();window.scrollTo(0,0);break;
@@ -1172,6 +1255,29 @@ function act(n,el,e){
     case 'top-suggest-today':S.dayKey=todayKey();S.view='today';syncHash();act('top-suggest',el,e);return;
     case 'kr-toggle':{const i=+el.dataset.i;mutate(el.dataset.scope==='week'?'weeks':'months',el.dataset.key,o=>{o.krs=o.krs||[];if(o.krs[i])o.krs[i].d=el.checked});break}
     case 'kr-del':{const i=+el.dataset.i;mutate(el.dataset.scope==='week'?'weeks':'months',el.dataset.key,o=>{o.krs=(o.krs||[]).filter((_,j)=>j!==i)});break}
+    case 'promise-skip':mutateDay(S.dayKey,d=>{d.skip=Object.assign({},d.skip);if(d.skip[id])delete d.skip[id];else{d.skip[id]=true;delete d.promises[id]}});break;
+    case 'top-add':mutateDay(S.dayKey,d=>{if(d.top.length<6)d.top.push({t:'',d:false})});render();{const ins=viewEl.querySelectorAll('[data-input="top-text"]');if(ins.length)ins[ins.length-1].focus()}return;
+    case 'top-remove':mutateDay(S.dayKey,d=>{d.top.splice(+el.dataset.i,1)});break;
+    case 'plan-st':{const st=el.dataset.st;mutateDay(S.dayKey,d=>{materialize(d);const b=d.plan.find(x=>x.id===id);if(b)b.st=b.st===st?'':st});break}
+    case 'plan-del':mutateDay(S.dayKey,d=>{materialize(d);d.plan=d.plan.filter(x=>x.id!==id)});break;
+    case 'plan-add':{const n=new Date(),isT=S.dayKey===todayKey(),hm=isT?pad(n.getHours())+':'+pad(Math.floor(n.getMinutes()/15)*15):'12:00',nid=uid();
+      mutateDay(S.dayKey,d=>{materialize(d);d.plan.push({id:nid,time:hm,title:'',st:''})});render();{const el2=document.getElementById('pn-'+nid);if(el2)el2.focus()}return}
+    case 'plan-shift':{const m=+el.dataset.m,isT=S.dayKey===todayKey(),n=new Date(),hm=pad(n.getHours())+':'+pad(n.getMinutes());let c=0;
+      mutateDay(S.dayKey,d=>{materialize(d);d.plan.forEach(b=>{if(!b.st&&(!isT||b.time>hm)){b.time=addMin(b.time,m);c++}})});toast(c?`Сдвинуто блоков: ${c}, на ${m>0?'+':''}${m} мин`:'Впереди нет блоков для сдвига');break}
+    case 'plan-template':{const pl=dayPlan(S.dayKey,S.days[S.dayKey]||null).filter(b=>String(b.title||'').trim()).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+      S.config=Object.assign({},cfg(),{schedule:pl.map(b=>({time:b.time||'00:00',title:String(b.title).trim()}))});save('config/main',S.config,0);toast('Этот план стал шаблоном для новых дней');break}
+    case 'plan-reset':S.planReset=true;break;
+    case 'plan-reset-no':S.planReset=false;break;
+    case 'plan-reset-yes':S.planReset=false;mutateDay(S.dayKey,d=>{delete d.plan});toast('Шаблон возвращён');break;
+    case 'note-quick':openModal('note',{text:''});return;
+    case 'note-to-task':{const t=String(S.draft.text||'').trim();if(!t){toast('Сначала напиши мысль');return}const nid=createNote(t,'task');openModal('task',{title:firstLine(t),goal:'',sphere:'',due:todayKey(),_note:nid});return}
+    case 'note-task':{const n=S.notes[id];if(!n)return;openModal('task',{title:firstLine(n.text),goal:'',sphere:'',due:todayKey(),_note:id});return}
+    case 'note-goal':{const n=S.notes[id];if(!n)return;openModal('goal',{title:firstLine(n.text),sphere:'',kind:'steps',target:'',unit:'',current:0,deadline:`${new Date().getFullYear()}-12-31`,milestones:[],_note:id});return}
+    case 'note-del':if(S.noteDel===id){remove('notes',id);S.noteDel=null;toast('Мысль удалена')}else S.noteDel=id;break;
+    case 'tasks-tab':S.tasksTab=el.dataset.t;break;
+    case 'sphere-add':{const nid=uid(),ord=Math.max(0,...spheresSorted().map(x=>+x.order||0))+1;S.spheres[nid]={name:'Новая сфера',order:ord,mode:'keep',score:null,target:'',next:''};save('spheres/'+nid,S.spheres[nid],0);S.sel=nid;S.view='year';S.yearTab='map';render();{const inp=document.getElementById('sp-name');if(inp){inp.focus();inp.select()}}return}
+    case 'sphere-del':if(S.sphDel===id){remove('spheres',id);S.sel=null;S.sphDel=null;toast('Сфера удалена')}else S.sphDel=id;break;
+    case 'sphere-del-no':S.sphDel=null;break;
     default:return;
   }
   render();
@@ -1185,6 +1291,11 @@ function onInput(t){
     case 'day-field':mutateDay(S.dayKey,d=>{d[f]=t.value},700);break;
     case 'sphere-field':mutate('spheres',id,s=>{s[f]=t.value},700);break;
     case 'week-field':{const ws=S.weekStart||mondayOf(todayKey());mutate('weeks',weekKey(ws),w=>{w.start=ws;w[f]=t.value},700);break}
+    case 'plan-time':{const m=String(t.value).trim().replace('.',':').match(/^([01]?\d|2[0-3]):([0-5]\d)$/);if(!m)break;const v=pad(+m[1])+':'+m[2];mutateDay(S.dayKey,d=>{materialize(d);const b=d.plan.find(x=>x.id===id);if(b)b.time=v},600);break}
+    case 'plan-title':mutateDay(S.dayKey,d=>{materialize(d);const b=d.plan.find(x=>x.id===id);if(b)b.title=t.value},700);break;
+    case 'kr-text':{const i=+t.dataset.i;mutate(t.dataset.scope==='week'?'weeks':'months',t.dataset.key,o=>{if(o.krs&&o.krs[i])o.krs[i].t=t.value},700);break}
+    case 'note-text':mutate('notes',id,n=>{n.text=t.value},700);break;
+    case 'note-search':{const q=t.value.trim().toLowerCase();viewEl.querySelectorAll('.note[data-text]').forEach(li=>{li.hidden=!!q&&!li.dataset.text.includes(q)});break}
     case 'month-field':{const mk=S.monthKey||monthOf(todayKey());mutate('months',mk,m=>{m[f]=t.value},700);break}
     case 'month-target':{const mk=S.monthKey||monthOf(todayKey()),v=toNum(t.value),gid=t.dataset.goal;mutate('months',mk,m=>{m.targets=Object.assign({},m.targets);if(v==null)delete m.targets[gid];else m.targets[gid]=v},700);break}
   }
@@ -1198,6 +1309,8 @@ function onSInput(t){
 function onForm(n,f){
   const fd=new FormData(f),g=k=>String(fd.get(k)||'').trim(),tk=todayKey();
   switch(n){
+    case 'note-add':{const text=String(fd.get('text')||'').trim();if(!text){toast('Пусто: напиши мысль');return}createNote(text);toast('Мысль сохранена');break}
+    case 'note-save':{const text=String(S.draft.text||'').trim();if(!text){toast('Пусто: напиши мысль');return}createNote(text);closeModal();toast('Мысль сохранена');break}
     case 'kr-add':{const t=g('t');if(!t){toast('Напиши результат');return}const sc=f.dataset.scope,key=f.dataset.key;
       mutate(sc==='week'?'weeks':'months',key,o=>{o.krs=[...(o.krs||[]),{id:uid(),t,d:false}];if(sc==='week')o.start=o.start||(S.weekStart||mondayOf(todayKey()))});break}
     case 'goal-value':{const v=toNum(g('v'));if(v==null){toast('Введи число');return}
@@ -1211,10 +1324,10 @@ function onForm(n,f){
         milestones:(d.milestones||[]).filter(m=>String(m.title||'').trim()).map(m=>({id:m.id||uid(),date:m.date||null,title:String(m.title).trim(),done:!!m.done}))};
       if(goal.kind==='number'){goal.target=toNum(d.target)||0;goal.unit=String(d.unit||'').trim();const cur=toNum(d.current)??0;goal.current=cur;
         if(old.current!==cur&&d.id)goal.log=[...goal.log.filter(l=>l.d!==tk),{d:tk,v:cur}].sort((a,b)=>a.d.localeCompare(b.d))}
-      S.goals[id]=goal;save('goals/'+id,goal,0);closeModal();if(!d.id){S.view='goals';S.horizon='all'}toast('Сохранено');break}
+      S.goals[id]=goal;save('goals/'+id,goal,0);if(d._note&&S.notes[d._note])mutate('notes',d._note,x=>{x.to='goal'});closeModal();if(!d.id){S.view='year';S.yearTab='goals';S.horizon='all';syncHash()}toast('Сохранено');break}
     case 'task-save':{const d=S.draft;const title=String(d.title||'').trim();if(!title){toast('Напиши задачу');return}
       let sphere=d.sphere||null;if(!sphere&&d.goal&&S.goals[d.goal])sphere=S.goals[d.goal].sphere||null;
-      const old=S.tasks[d.id]||{};S.tasks[d.id]=Object.assign({},old,{title,goal:d.goal||null,sphere,due:d.due||null});save('tasks/'+d.id,S.tasks[d.id],0);closeModal();toast('Сохранено');break}
+      const tid=d.id||uid(),old=S.tasks[tid]||{done:false,doneAt:null,created:tk};S.tasks[tid]=Object.assign({},old,{title,goal:d.goal||null,sphere,due:d.due||null});save('tasks/'+tid,S.tasks[tid],0);if(d._note&&S.notes[d._note])mutate('notes',d._note,x=>{x.to='task'});closeModal();toast(d.id?'Сохранено':'Задача создана');break}
     case 'settings':{const d=S.draft;
       d.promises=(d.promises||[]).filter(p=>String(p.text||'').trim()).map(p=>({id:p.id||uid(),text:String(p.text).trim(),min:String(p.min||'').trim(),perWeek:Math.max(1,Math.min(7,parseInt(p.perWeek,10)||7))}));
       d.schedule=(d.schedule||[]).filter(b=>String(b.title||'').trim()).map(b=>({time:b.time||'00:00',title:String(b.title).trim()}));
@@ -1284,7 +1397,7 @@ let lastToday=todayKey();
 setInterval(()=>{const tk=todayKey();if(tk!==lastToday){if(S.dayKey===lastToday)S.dayKey=tk;lastToday=tk}if(S.view==='today'&&modalEl.hidden&&!editing())render()},60000);
 (async function(){
   db=makeServerDb();
-  const names=['config','spheres','goals','tasks','days','weeks','months'];
+  const names=['config','spheres','goals','tasks','days','weeks','months','notes'];
   const timer=setTimeout(()=>{if(S.state==='loading')notice('Данные пока не загрузились. Проверь соединение: страница подхватит их сама.')},10000);
   const mark=(n,meta)=>{if(!meta.fromCache){S.loaded[n]=true;if(names.every(x=>S.loaded[x])&&S.state!=='ready'){S.state='ready';clearTimeout(timer);notice(null)}}};
   const onErr=e=>{clearTimeout(timer);S.state='error';notice('Не удалось загрузить данные'+(e&&e.code?' ('+e.code+')':'')+'. Обнови страницу позже.');render()};
