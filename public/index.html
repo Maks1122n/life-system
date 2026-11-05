@@ -500,6 +500,20 @@ textarea.note-tx:hover{border-color:transparent}
 .chart .rad-cur{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
 .chart .rad-prev{fill:none;stroke:var(--faint);stroke-width:1.5;stroke-dasharray:4 3}
 .chart .rl{fill:var(--fg);font-family:var(--font-body);font-size:10.5px;font-weight:600}
+.radar .rnode{cursor:pointer;outline:none}
+.radar .rnode .hit{fill:transparent}
+.radar .rnode .vdot{fill:var(--accent)}
+.radar .rnode .rv2{fill:var(--accent);font-family:var(--font-mono)}
+.radar .rnode:hover .rl,.radar .rnode:focus-visible .rl{fill:var(--accent);text-decoration:underline}
+.radar .rnode:focus-visible .hit{stroke:var(--accent);stroke-width:1.5}
+.schips{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:6px;margin-top:12px}
+.schip{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:4px 8px;align-items:center;text-align:left;border:0;background:var(--surface-2);border-radius:12px;padding:9px 12px;color:var(--fg);min-height:52px}
+.schip:hover{box-shadow:inset 0 0 0 1px var(--accent)}
+.schip .sn{font-size:13px;font-weight:600;line-height:17px;overflow-wrap:anywhere}
+.schip b{font-family:var(--font-mono);font-size:14px;color:var(--accent);grid-row:1/3;grid-column:2}
+.schip .sbar{height:4px;border-radius:2px;background:var(--bg);overflow:hidden;grid-column:1}
+.schip .sbar i{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.schip.f .sn::after{content:" · главное";color:var(--accent);font-weight:500}
 .burn{margin-top:6px}
 .burnwrap+.burnwrap{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
 .burnwrap .row,.mplan .row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -1014,14 +1028,18 @@ function radarChart(){
   const keys=Object.keys(S.weeks).filter(k=>S.weeks[k]&&S.weeks[k].scores).sort(),cur=weekKey(todayKey());
   const prevKey=keys.filter(k=>k<cur).pop(),prev=prevKey?S.weeks[prevKey].scores:null;
   const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/n;return [cx+R*v/10*Math.cos(a),cy+R*v/10*Math.sin(a)]};
-  let g='';[2,4,6,8,10].forEach(l=>{g+=`<polygon class="rgrid" points="${sp.map((_,i)=>pt(i,l).map(x=>x.toFixed(1)).join(',')).join(' ')}"/>`});
+  let g='',nodes='';[2,4,6,8,10].forEach(l=>{g+=`<polygon class="rgrid" points="${sp.map((_,i)=>pt(i,l).map(x=>x.toFixed(1)).join(',')).join(' ')}"/>`});
   sp.forEach((s,i)=>{const [x,y]=pt(i,10);g+=`<line class="gl" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
     const a=-Math.PI/2+i*2*Math.PI/n,lx=cx+(R+16)*Math.cos(a),ly=cy+(R+16)*Math.sin(a),anc=Math.cos(a)>0.3?'start':Math.cos(a)<-0.3?'end':'middle';
-    const nm=String(s.name).split(' ')[0];g+=`<text class="rl" x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anc}">${esc(nm)} ${s.score?s.score:'—'}</text>`});
+    const [vx,vy]=pt(i,+s.score||0),nm=String(s.name).split(' ')[0];
+    nodes+=`<g class="rnode" data-act="sphere-sheet" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="${esc(s.name)}: ${s.score||'нет оценки'}. Открыть">
+      <circle class="hit" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="22"/><circle class="vdot" cx="${vx.toFixed(1)}" cy="${vy.toFixed(1)}" r="${s.score?4:0}"/>
+      <text class="rl" x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="${anc}">${esc(nm)} <tspan class="rv2">${s.score?s.score:'—'}</tspan></text></g>`});
   const curPts=sp.map((s,i)=>pt(i,+s.score||0).map(x=>x.toFixed(1)).join(',')).join(' ');
   const prevPts=prev?sp.map((s,i)=>pt(i,+prev[s.id]||0).map(x=>x.toFixed(1)).join(',')).join(' '):'';
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Баланс сфер">${g}${prev?`<polygon class="rad-prev" points="${prevPts}"/>`:''}<polygon class="rad-cur" points="${curPts}"/></svg>
-  <div class="legend2"><span><i class="lg pine"></i>сейчас</span>${prev?'<span><i class="lg dash"></i>прошлая неделя</span>':''}</div>`;
+  return `<svg class="chart radar" viewBox="0 0 ${W} ${H}" role="group" aria-label="Баланс сфер: нажми на сферу, чтобы изменить">${g}${prev?`<polygon class="rad-prev" points="${prevPts}"/>`:''}<polygon class="rad-cur" points="${curPts}"/>${nodes}</svg>
+  <div class="legend2"><span><i class="lg acc"></i>сейчас</span>${prev?'<span><i class="lg dash"></i>прошлая неделя</span>':''}<span>нажми на сферу, чтобы изменить</span></div>
+  <div class="schips">${sp.map(s=>{const sc=+s.score||0;return `<button type="button" class="schip${s.mode==='focus'?' f':''}" data-act="sphere-sheet" data-id="${esc(s.id)}"><span class="sn">${esc(s.name)}</span><span class="sbar"><i style="width:${sc*10}%"></i></span><b>${sc||'—'}</b></button>`}).join('')}</div>`;
 }
 function weeksChart(n){
   n=Math.max(1,Math.min(n,Math.floor(diff(mondayOf(startDay()),mondayOf(todayKey()))/7)+1));
@@ -1175,7 +1193,7 @@ function vToday(){
   /* опоры */
   const pillars=slots.slice(0,6).map(x=>{const meta=x.task?(x.task.goal&&S.goals[x.task.goal]?S.goals[x.task.goal].title:(S.spheres[x.task.sphere]?S.spheres[x.task.sphere].name:'Задача')):'';
     return `<div class="pillar${x.done?' done':''}"><label class="circ"><input type="checkbox" id="tp-${x.i}" data-act="top-done" data-i="${x.i}"${x.done?' checked':''} aria-label="Сделано"><span class="cb">${icon('check')}</span></label>
-      <div class="pl-body">${x.task?`<div class="pl-title">${esc(x.title)}</div><div class="pl-meta">${esc(meta)}</div>`:`<input class="line-input pl-title" id="tt-${x.i}" data-input="top-text" data-i="${x.i}" value="${esc(x.t.t)}" placeholder="${['Самое важное, что двигает цель','Вторая опора','Третья опора'][x.i]||'Ещё одна'}" aria-label="Опора ${x.i+1}">`}</div>
+      <div class="pl-body">${x.task?`<button class="ttl" type="button" data-act="task-edit" data-id="${esc(x.t.task)}" style="padding:0"><span class="pl-title tx">${esc(x.title)}</span><span class="pl-meta">${esc(meta)}</span></button>`:`<input class="line-input pl-title" id="tt-${x.i}" data-input="top-text" data-i="${x.i}" value="${esc(x.t.t)}" placeholder="${['Самое важное, что двигает цель','Вторая опора','Третья опора'][x.i]||'Ещё одна'}" aria-label="Опора ${x.i+1}">`}</div>
       ${x.filled&&!x.done&&isT?`<button class="play-btn" type="button" data-act="focus-open" data-i="${x.i}" aria-label="Фокус на этой задаче">${icon('play')}</button>`:''}
       ${x.task?`<button class="x-btn" type="button" data-act="top-unlink" data-i="${x.i}" aria-label="Освободить">${icon('x')}</button>`:x.i>=3?`<button class="x-btn" type="button" data-act="top-remove" data-i="${x.i}" aria-label="Убрать">${icon('x')}</button>`:''}</div>`}).join('');
   const hasEmpty=slots.some(x=>!x.filled);
@@ -1215,7 +1233,7 @@ function vToday(){
   <div class="today-grid"><div class="main-col">
     ${hero}
     <section class="section"><div class="sec-head"><h2 class="t-sec">Три опоры дня</h2>${hasEmpty?'<button class="link" type="button" data-act="top-suggest">Подобрать из задач</button>':''}</div>
-      <div class="pillars">${pillars}</div>${slots.length<6?'<button class="btn ghost sm" type="button" data-act="top-add" style="margin-top:6px">'+icon('plus')+' Ещё одна</button>':''}</section>
+      <div class="pillars">${pillars}</div>${(()=>{const used=new Set(slots.map(x=>x.t.task).filter(Boolean));const rest=tasksAll().filter(t=>!t.done&&t.due&&(isT?t.due<=k:t.due===k)&&!used.has(t.id)).length;return rest?`<button class="link" type="button" data-act="goto-plan" style="margin-top:8px">Ещё ${rest} ${plural(rest,['задача','задачи','задач'])} на этот день →</button><br>`:''})()}${slots.length<6?'<button class="btn ghost sm" type="button" data-act="top-add" style="margin-top:6px">'+icon('plus')+' Ещё одна</button>':''}</section>
     ${near?`<section class="section"><div class="sec-head"><h2 class="t-sec">Ближайший блок</h2><button class="link" type="button" data-act="goto-plan">Весь план</button></div><div class="stack">${near}</div></section>`:''}
     <section class="section"><div class="sec-head"><h2 class="t-sec">Привычки</h2><div class="seg" role="group" aria-label="Режим дня"><button type="button" data-act="mode" data-mode="normal" aria-pressed="${d.mode!=='min'}">Обычный</button><button type="button" data-act="mode" data-mode="min" aria-pressed="${d.mode==='min'}">Минимум</button></div></div>
       ${c.identity?`<p class="faint small" style="margin:-4px 0 10px">${esc(c.identity)}</p>`:''}
@@ -1424,17 +1442,21 @@ function applyTheme(){let t='auto';try{t=localStorage.getItem('lp_theme')||'auto
 function act5(n,el,e){
   const id=el.dataset.id;
   switch(n){
+    case 'sphere-sheet':if(!S.spheres[id])return true;S.modal='sphere';S.draft={id};renderModal(false);return true;
+    case 'sphere-score':case 'sphere-mode':{if(n==='sphere-score')mutate('spheres',id,s=>{s.score=+el.dataset.v});else mutate('spheres',id,s=>{s.mode=el.dataset.mode});
+      const ws=mondayOf(todayKey());if(n==='sphere-score')mutate('weeks',weekKey(ws),w=>{w.start=w.start||ws;w.scores=Object.assign({},w.scores,{[id]:+el.dataset.v})});
+      render();if(S.modal==='sphere')renderModal(false);return true}
     case 'plan-tab':S.planTab=el.dataset.t;break;
     case 'goals-tab':S.view='goals';S.goalsTab=el.dataset.t;window.scrollTo(0,0);break;
     case 'me-tab':S.meTab=el.dataset.t;break;
     case 'period':S.period=+el.dataset.t;break;
     case 'plan-date':S.dayKey=el.dataset.k;break;
     case 'plan-wk':S.dayKey=addDays(S.dayKey,+el.dataset.d);break;
-    case 'goto-plan':S.view='plan';S.planTab='day';syncHash();window.scrollTo(0,0);break;
-    case 'goto-me':S.view='me';S.meTab='base';syncHash();window.scrollTo(0,0);break;
-    case 'goto-goals':S.view='goals';S.goalsTab='goals';syncHash();window.scrollTo(0,0);break;
-    case 'goto-map':S.view='goals';S.goalsTab='spheres';syncHash();window.scrollTo(0,0);break;
-    case 'goto-goal':{S.view='goals';S.goalsTab='goals';S.horizon='all';syncHash();render();const ge=document.getElementById('goal-'+id);if(ge)ge.scrollIntoView({block:'start'});return true}
+    case 'goto-plan':closeModal();S.view='plan';S.planTab='day';syncHash();window.scrollTo(0,0);break;
+    case 'goto-me':closeModal();S.view='me';S.meTab='base';syncHash();window.scrollTo(0,0);break;
+    case 'goto-goals':closeModal();S.view='goals';S.goalsTab='goals';syncHash();window.scrollTo(0,0);break;
+    case 'goto-map':closeModal();S.view='goals';S.goalsTab='spheres';syncHash();window.scrollTo(0,0);break;
+    case 'goto-goal':{closeModal();S.view='goals';S.goalsTab='goals';S.horizon='all';syncHash();render();const ge=document.getElementById('goal-'+id);if(ge)ge.scrollIntoView({block:'start'});return true}
     case 'open-week':S.weekStart=mondayOf(el.dataset.k);S.view='plan';S.planTab='week';syncHash();window.scrollTo(0,0);break;
     case 'open-month':S.monthKey=el.dataset.k;S.view='plan';S.planTab='month';syncHash();window.scrollTo(0,0);break;
     case 'open-day':S.dayKey=el.dataset.k;S.view='today';syncHash();window.scrollTo(0,0);break;
@@ -1469,7 +1491,7 @@ function closeModal(){modalEl.hidden=true;modalEl.innerHTML='';S.modal=null;S.dr
 function renderModal(focus){
   const st=modalEl.querySelector('.sheet');const top=st?st.scrollTop:0;
   modalEl.hidden=false;
-  modalEl.innerHTML=S.modal==='goal'?mGoal():S.modal==='task'?mTask():S.modal==='note'?mNote():mSettings();
+  modalEl.innerHTML=S.modal==='goal'?mGoal():S.modal==='task'?mTask():S.modal==='note'?mNote():S.modal==='sphere'?mSphere():mSettings();
   modalEl.querySelectorAll('textarea').forEach(autosize);
   const ns=modalEl.querySelector('.sheet');if(ns&&!focus)ns.scrollTop=top;
   if(focus){const f=modalEl.querySelector('input:not([type=hidden]),textarea,select');if(f)f.focus({preventScroll:true})}
@@ -1488,6 +1510,23 @@ function mGoal(){
     <fieldset><legend>Контрольные точки</legend>${ms||'<p class="empty">Этапов нет.</p>'}<div><button class="btn sm" type="button" data-act="d-add" data-list="milestones">Добавить этап</button></div></fieldset>
     <div class="actions">${del}<div class="r"><button class="btn ghost" type="button" data-act="close-modal">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div>
   </form>`);
+}
+function mSphere(){
+  const id=S.draft.id,s=S.spheres[id];
+  if(!s)return shell('ms-t','Сфера','<p class="empty">Эта сфера удалена.</p><div class="actions"><span></span><button class="btn primary" type="button" data-act="close-modal">Закрыть</button></div>');
+  const sg=goalsSorted().filter(g=>g.sphere===id),st=tasksAll().filter(t=>t.sphere===id&&!t.done).sort((a,b)=>String(a.due||'9').localeCompare(String(b.due||'9')));
+  const scale=[1,2,3,4,5,6,7,8,9,10].map(v=>`<button type="button" data-act="sphere-score" data-id="${esc(id)}" data-v="${v}" class="${s.score&&v<s.score?'lit':''}" aria-pressed="${+s.score===v}" aria-label="Оценка ${v}">${v}</button>`).join('');
+  const modes=Object.entries(MODES).map(([k,l])=>`<button type="button" data-act="sphere-mode" data-id="${esc(id)}" data-mode="${k}" aria-pressed="${(s.mode||'keep')===k}">${l}</button>`).join('');
+  return shell('ms-t','Сфера жизни',`<div class="sphere-panel">
+    <input class="sp-name" id="ms-name" data-input="sphere-field" data-field="name" data-id="${esc(id)}" value="${esc(s.name)}" aria-label="Название сферы">
+    <div class="field"><span>Роль сейчас</span><div class="seg" role="group" aria-label="Режим сферы">${modes}</div></div>
+    <div class="field"><span>Где я сейчас, по моей оценке</span><div class="scale" role="group" aria-label="Оценка от 1 до 10">${scale}</div><span class="faint small" style="font-weight:400">Честная самооценка от 1 до 10. Обновляй в обзоре недели — так виден рост.</span></div>
+    <label class="field"><span>Через год</span><textarea class="in" id="ms-target" data-input="sphere-field" data-field="target" data-id="${esc(id)}" placeholder="Как это выглядит — конкретно">${esc(s.target)}</textarea></label>
+    <div class="field"><span>Следующий шаг</span><div class="next-row"><input class="in" id="ms-next" data-input="sphere-field" data-field="next" data-id="${esc(id)}" value="${esc(s.next)}" placeholder="Одно конкретное действие"><button class="btn sm" type="button" data-act="next-to-task" data-id="${esc(id)}">В задачи</button></div></div>
+    <div><div class="sub-label"><span class="label">Цели сферы</span><button class="link" type="button" data-act="goal-new" data-sphere="${esc(id)}">+ Цель</button></div>${sg.length?`<ul class="mini">${sg.map(g=>{const [c2,l2]=gStatus(g);return `<li><div class="row"><button class="link" type="button" data-act="goto-goal" data-id="${esc(g.id)}" style="color:var(--fg);text-align:left">${esc(g.title)}</button><span>${Math.round(progress(g)*100)}%</span></div><div class="bar"><i style="width:${(progress(g)*100).toFixed(1)}%"></i></div><div><span class="pill ${c2}">${l2}</span></div></li>`}).join('')}</ul>`:'<p class="empty">Целей пока нет.</p>'}</div>
+    <div><div class="label" style="margin-bottom:4px">Открытые задачи</div>${st.length?`<ul class="tlist">${st.map(taskRow).join('')}</ul>`:'<p class="empty">Открытых задач нет.</p>'}</div>
+    <div class="actions"><button class="btn ghost sm" type="button" data-act="goto-map">Вся карта сфер</button><div class="r"><button class="btn primary" type="button" data-act="close-modal">Готово</button></div></div>
+  </div>`);
 }
 function mNote(){
   const d=S.draft;
@@ -1613,9 +1652,6 @@ function act(n,el,e){
     case 'month-next':S.monthKey=addMonths(S.monthKey||monthOf(todayKey()),1);window.scrollTo(0,0);break;
     case 'month-today':S.monthKey=null;break;
     case 'year-tab':S.yearTab=el.dataset.t;break;
-    case 'goto-goals':S.view='year';S.yearTab='goals';syncHash();window.scrollTo(0,0);break;
-    case 'goto-map':S.view='year';S.yearTab='map';syncHash();window.scrollTo(0,0);break;
-    case 'goto-goal':{S.view='year';S.yearTab='goals';S.horizon='all';syncHash();render();const ge=document.getElementById('goal-'+id);if(ge)ge.scrollIntoView({block:'start'});return}
     case 'plan-tomorrow':S.dayKey=addDays(todayKey(),1);window.scrollTo(0,0);toast('Выбери три главные задачи на завтра');break;
     case 'top-suggest-today':S.dayKey=todayKey();S.view='today';syncHash();act('top-suggest',el,e);return;
     case 'kr-toggle':{const i=+el.dataset.i;mutate(el.dataset.scope==='week'?'weeks':'months',el.dataset.key,o=>{o.krs=o.krs||[];if(o.krs[i])o.krs[i].d=el.checked});break}
