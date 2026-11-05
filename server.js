@@ -17,6 +17,7 @@ const INDEX_FILE = path.join(__dirname, 'public', 'index.html');
 const COLLECTIONS = ['config', 'spheres', 'goals', 'tasks', 'days', 'weeks'];
 const SEG = /^[A-Za-z0-9_\-.~:@+]{1,200}$/;
 const MAX_BODY = 512 * 1024;
+const STARTED = new Date().toISOString();
 
 if (!PASSWORD || PASSWORD.length < 8 || PASSWORD === 'СМЕНИ_ЭТОТ_ПАРОЛЬ') {
   console.error('Задай пароль не короче 8 символов: APP_PASSWORD=... node server.js');
@@ -129,6 +130,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/logout' && req.method === 'POST') {
       return send(res, 200, { ok: true }, { 'Set-Cookie': 'lp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' });
+    }
+    // Служебная проверка без входа: только количество записей, без содержимого.
+    if (p === '/api/health' && req.method === 'GET') {
+      const counts = {}; for (const c of COLLECTIONS) counts[c] = Object.keys(store[c] || {}).length;
+      return send(res, 200, { ok: true, started: STARTED, counts });
     }
     if (p.startsWith('/api/')) {
       if (!authed(req)) return send(res, 401, { error: 'auth' });
